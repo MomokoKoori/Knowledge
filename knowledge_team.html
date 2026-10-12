@@ -298,9 +298,17 @@ async function loadTeam(){
   if(data&&data[0]&&data[0].teams){
     teamId=data[0].teams.id; teamName=data[0].teams.name||'团队';
   } else {
-    // 没有团队：建一个
-    const {data:tm}=await supa.from('teams').insert({name:'我的团队'}).select('id').single();
-    if(tm){ await supa.from('team_members').insert({team_id:tm.id,user_id:session.user.id,role:'owner'}); teamId=tm.id; teamName='我的团队'; }
+    // 没有团队：优先加入已存在的团队（团队共享），否则才建新团队
+    const {data:exist}=await supa.from('teams').select('id').limit(1);
+    if(exist && exist[0]){
+      teamId=exist[0].id;
+      await supa.from('team_members').insert({team_id:teamId,user_id:session.user.id,role:'member'}).maybeSingle();
+      const {data:tn}=await supa.from('teams').select('name').eq('id',teamId).maybeSingle();
+      teamName=(tn&&tn.name)||'团队';
+    } else {
+      const {data:tm}=await supa.from('teams').insert({name:'我的团队'}).select('id').single();
+      if(tm){ await supa.from('team_members').insert({team_id:tm.id,user_id:session.user.id,role:'owner'}); teamId=tm.id; teamName='我的团队'; }
+    }
   }
   document.getElementById('teamName').textContent=teamName;
   fetchAll(); subscribeRealtime();
