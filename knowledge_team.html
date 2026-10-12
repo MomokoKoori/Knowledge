@@ -1,0 +1,541 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>业务知识库 · 团队版</title>
+<style>
+:root{
+  --bg:#f5f6f8; --card:#ffffff; --text:#1a1d29; --muted:#8a90a6;
+  --primary:#3b5bdb; --primary-soft:#eef1ff; --border:#e8eaf0;
+  --danger:#e85d5d; --success:#2f9e6f; --radius:12px;
+  --shadow:0 2px 12px rgba(20,24,60,.06);
+}
+*{box-sizing:border-box; margin:0; padding:0;}
+html,body{height:100%;}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  background:var(--bg); color:var(--text); -webkit-font-smoothing:antialiased; line-height:1.5;
+}
+.app{max-width:480px; margin:0 auto; min-height:100vh; background:var(--bg); position:relative;}
+/* ---- auth screen ---- */
+.auth{position:fixed; inset:0; z-index:100; background:var(--bg); display:flex; align-items:center; justify-content:center; padding:24px;}
+.auth .abox{width:100%; max-width:340px; background:var(--card); border-radius:16px; padding:28px 24px; box-shadow:var(--shadow);}
+.auth .alog{font-size:22px; font-weight:700; text-align:center; margin-bottom:4px; color:var(--primary);}
+.auth .asub{text-align:center; font-size:13px; color:var(--muted); margin-bottom:20px;}
+.auth input{width:100%; height:46px; border:1px solid var(--border); border-radius:10px; padding:0 12px; font-size:15px; margin-bottom:12px; outline:none; background:var(--card);}
+.auth input:focus{border-color:var(--primary);}
+.auth .abtn{width:100%; height:46px; border:none; border-radius:10px; background:var(--primary); color:#fff; font-size:15px; font-weight:600; cursor:pointer; margin-top:6px;}
+.auth .ahint{font-size:12px; color:var(--muted); text-align:center; margin-top:14px;}
+/* ---- header ---- */
+header{position:sticky; top:0; z-index:20; background:rgba(245,246,248,.94); backdrop-filter:saturate(140%) blur(8px); padding:calc(env(safe-area-inset-top) + 12px) 16px 8px;}
+.hbar{display:flex; align-items:center; gap:10px; margin-bottom:10px;}
+.hbar .logo{font-size:15px; font-weight:700; color:var(--primary); flex:1;}
+.hbar .team{font-size:12px; color:var(--muted); background:var(--card); border:1px solid var(--border); padding:4px 10px; border-radius:14px;}
+.hbar .status{width:9px; height:9px; border-radius:50%; background:var(--success); flex:0 0 auto;}
+.hbar .status.off{background:var(--muted);}
+.ibtn{width:34px; height:34px; border-radius:9px; border:1px solid var(--border); background:var(--card); display:flex; align-items:center; justify-content:center; cursor:pointer; color:var(--muted); font-size:13px; font-weight:600; flex:0 0 auto;}
+.search-wrap{position:relative;}
+.search-wrap input{width:100%; height:46px; border:1px solid var(--border); border-radius:var(--radius); background:var(--card); padding:0 42px; font-size:16px; outline:none; box-shadow:var(--shadow);}
+.search-wrap input:focus{border-color:var(--primary);}
+.search-wrap .s-icon{position:absolute; left:13px; top:50%; transform:translateY(-50%); color:var(--muted); font-size:15px;}
+.search-wrap .s-clear{position:absolute; right:8px; top:50%; transform:translateY(-50%); width:30px; height:30px; border-radius:50%; border:none; background:var(--primary-soft); color:var(--primary); font-size:15px; cursor:pointer; display:none; align-items:center; justify-content:center;}
+.tabs{display:flex; gap:8px; overflow-x:auto; padding:10px 0 2px; scrollbar-width:none;}
+.tabs::-webkit-scrollbar{display:none;}
+.tab{flex:0 0 auto; padding:6px 13px; border-radius:20px; font-size:13px; font-weight:500; border:1px solid var(--border); background:var(--card); color:var(--muted); cursor:pointer; white-space:nowrap;}
+.tab.active{background:var(--primary); color:#fff; border-color:var(--primary);}
+/* ---- list ---- */
+main{padding:6px 16px calc(96px + env(safe-area-inset-bottom));}
+.list{display:flex; flex-direction:column; gap:11px;}
+.card{background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:13px 13px 11px; cursor:pointer; box-shadow:var(--shadow); transition:transform .08s;}
+.card:active{transform:scale(.99);}
+.card .c-top{display:flex; align-items:flex-start; gap:9px;}
+.card .c-fav{flex:0 0 auto; width:30px; height:30px; border:none; background:transparent; cursor:pointer; padding:4px; color:var(--muted); font-size:18px;}
+.card .c-fav.on{color:var(--success);}
+.card .c-body{flex:1; min-width:0;}
+.card h3{font-size:15px; font-weight:600; margin-bottom:4px; line-height:1.35;}
+.card h3 mark,.card .c-sum mark{background:var(--primary-soft); color:var(--primary); border-radius:3px; padding:0 2px;}
+.card .c-sum{font-size:13px; color:var(--muted); display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;}
+.card .c-meta{display:flex; align-items:center; gap:6px; margin-top:9px; flex-wrap:wrap;}
+.chip{font-size:11px; padding:3px 8px; border-radius:10px; background:var(--primary-soft); color:var(--primary); font-weight:500;}
+.chip.tag{background:#f0f2f7; color:var(--muted); font-weight:400;}
+.card .c-time{font-size:11px; color:var(--muted); margin-left:auto;}
+.empty{text-align:center; padding:60px 24px; color:var(--muted);}
+.empty .e-icon{font-size:40px; margin-bottom:10px; opacity:.5;}
+.empty p{font-size:14px;}
+/* ---- fab ---- */
+.fab{position:fixed; right:max(16px, calc((100vw - 480px)/2 + 16px)); bottom:calc(24px + env(safe-area-inset-bottom)); width:56px; height:56px; border-radius:16px; border:none; background:var(--primary); color:#fff; font-size:26px; cursor:pointer; box-shadow:0 6px 18px rgba(59,91,219,.4); z-index:30; line-height:1; display:flex; align-items:center; justify-content:center; transition:transform .1s;}
+.fab:active{transform:scale(.94);}
+/* ---- sheet ---- */
+.backdrop{position:fixed; inset:0; background:rgba(20,24,60,.32); z-index:35; opacity:0; pointer-events:none; transition:opacity .25s;}
+.backdrop.on{opacity:1; pointer-events:auto;}
+.sheet{position:fixed; left:0; right:0; bottom:0; background:var(--bg); z-index:40; max-width:480px; margin:0 auto; border-radius:20px 20px 0 0; box-shadow:0 -8px 30px rgba(20,24,60,.18); transform:translateY(105%); transition:transform .28s cubic-bezier(.22,.61,.36,1); max-height:calc(100vh - env(safe-area-inset-top)); overflow-y:auto;}
+.sheet.open{transform:translateY(0);}
+.sheet .grip{width:36px; height:4px; border-radius:2px; background:#d7dae5; margin:10px auto 4px;}
+.sheet .s-head{padding:8px 18px 12px; display:flex; align-items:center; gap:12px; position:sticky; top:0; background:var(--bg); z-index:2;}
+.sheet .s-head h2{font-size:16px; font-weight:600; flex:1; line-height:1.35;}
+.s-btn{width:38px; height:38px; border-radius:50%; border:1px solid var(--border); background:var(--card); display:flex; align-items:center; justify-content:center; cursor:pointer; color:var(--muted); font-size:16px;}
+.s-btn.fav.on{color:var(--success); border-color:var(--success);}
+.sheet .s-body{padding:6px 18px 28px;}
+.sheet .s-tags{display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px;}
+.sheet .s-content{font-size:15px;}
+.sheet .s-content p{margin-bottom:10px;}
+.sheet .s-content ul{padding-left:18px; margin-bottom:10px;}
+.sheet .s-content li{margin-bottom:4px;}
+.sheet .s-content h1,.sheet .s-content h2,.sheet .s-content h3{font-size:16px; margin:14px 0 8px; font-weight:600;}
+.sheet .s-content code{background:#f0f2f7; padding:2px 5px; border-radius:4px; font-size:13px; font-family:ui-monospace,monospace;}
+.sheet .s-meta{margin-top:14px; font-size:12px; color:var(--muted);}
+.sheet .s-foot{display:flex; gap:10px; padding:14px 18px; border-top:1px solid var(--border); position:sticky; bottom:0; background:var(--bg);}
+.sheet .s-foot button{flex:1; height:44px; border-radius:12px; font-size:14px; font-weight:500; cursor:pointer; border:1px solid var(--border); background:var(--card); color:var(--text);}
+.sheet .s-foot .save{background:var(--primary); color:#fff; border-color:var(--primary);}
+.sheet .s-foot .del{color:var(--danger); border-color:#f6dcdc; background:#fdf3f3;}
+/* ---- editor ---- */
+.editor{display:none; flex-direction:column; gap:12px; padding:14px 18px 20px;}
+.editor.on{display:flex;}
+.editor input,.editor textarea{width:100%; border:1px solid var(--border); border-radius:10px; background:var(--card); padding:11px 12px; font-size:15px; outline:none; font-family:inherit;}
+.editor input:focus,.editor textarea:focus{border-color:var(--primary);}
+.editor textarea{min-height:120px; resize:vertical;}
+.editor .row{display:flex; gap:10px;}
+.editor .row > div{flex:1;}
+.editor label{font-size:12px; color:var(--muted); display:block; margin-bottom:5px; font-weight:500;}
+/* ---- modal / toast / syncbanner ---- */
+.modal{position:fixed; inset:0; background:rgba(20,24,60,.45); z-index:70; display:none; align-items:center; justify-content:center; padding:24px;}
+.modal.on{display:flex;}
+.modal .mbox{background:var(--card); border-radius:16px; padding:22px; width:100%; max-width:340px; box-shadow:var(--shadow);}
+.modal h3{font-size:16px; font-weight:600; margin-bottom:8px;}
+.modal p{font-size:13px; color:var(--muted); margin-bottom:16px;}
+.modal .mrow{display:flex; gap:10px;}
+.modal .mrow button{flex:1; height:42px; border-radius:10px; font-size:14px; cursor:pointer; border:1px solid var(--border); background:var(--bg); color:var(--text);}
+.modal .mrow .ok{background:var(--primary); color:#fff; border-color:var(--primary);}
+.toast{position:fixed; left:50%; bottom:calc(100px + env(safe-area-inset-bottom)); transform:translateX(-50%) translateY(12px); background:rgba(26,29,41,.92); color:#fff; padding:9px 18px; border-radius:22px; font-size:13px; z-index:80; opacity:0; pointer-events:none; transition:all .25s; white-space:nowrap;}
+.toast.on{opacity:1; transform:translateX(-50%) translateY(0);}
+.syncbanner{display:none; background:#fff7e6; color:#8a6d1f; font-size:12px; text-align:center; padding:7px 12px; border-bottom:1px solid #f3e3b8;}
+.syncbanner.on{display:block;}
+</style>
+
+<body>
+﻿<script>
+/* ===== 调试兜底：白屏时在页面上显示错误，不依赖 F12 ===== */
+(function(){
+  function dbg(msg){
+    var d=document.getElementById('__dbg');
+    if(!d){ d=document.createElement('div'); d.id='__dbg';
+      d.style.cssText='position:fixed;top:0;left:0;right:0;z-index:9999;background:#c0392b;color:#fff;padding:10px 14px;font:13px/1.5 monospace;white-space:pre-wrap;';
+      document.body && document.body.appendChild(d); }
+    d.textContent += msg + '\n';
+  }
+  window.__dbg=dbg;
+  window.addEventListener('error',function(e){ dbg('[ERROR] '+(e.message||'unknown')+' @ '+(e.filename||'')+':'+(e.lineno||'')); });
+  window.addEventListener('unhandledrejection',function(e){ dbg('[PROMISE] '+(e.reason&&e.reason.message||e.reason)); });
+  document.addEventListener('DOMContentLoaded',function(){
+    setTimeout(function(){
+      if(!document.getElementById('auth').style.display || document.getElementById('auth').style.display==='none'){
+        dbg('[BOOT] 登录框未显示，当前 SUPABASE_URL='+(typeof SUPABASE_URL!=='undefined'?SUPABASE_URL:'(undefined)'));
+        dbg('[BOOT] supabase 已加载? '+(typeof window.supabase!=='undefined'));
+      }
+    },2500);
+  });
+})();
+</script>
+
+<!-- login -->
+<div class="auth" id="auth" style="display:none">
+  <div class="abox">
+    <div class="alog">业务知识库</div>
+    <div class="asub">团队共享 · 多设备实时同步</div>
+    <input type="email" id="email" placeholder="邮箱" autocomplete="off">
+    <input type="password" id="pass" placeholder="密码">
+    <button class="abtn" id="loginBtn">登录</button>
+    <div class="ahint" id="loginHint">首次使用会自动创建账号</div>
+  </div>
+</div>
+
+<!-- app -->
+<div class="app" id="app" style="display:none">
+  <div class="syncbanner" id="syncBanner">离线模式，改动暂存本地，联网后自动同步</div>
+  <header>
+    <div class="hbar">
+      <span class="logo">知识库</span>
+      <span class="team" id="teamName">团队</span>
+      <span class="status" id="netStatus" title="同步状态"></span>
+      <button class="ibtn" id="btnImp" title="导入备份">⇪</button>
+      <button class="ibtn" id="btnExp" title="导出备份">⇩</button>
+      <button class="ibtn" id="btnOut" title="退出">⎋</button>
+    </div>
+    <div class="search-wrap">
+      <span class="s-icon">🔍</span>
+      <input type="search" id="q" placeholder="搜索知识、标签或关键词…" autocomplete="off">
+      <button class="s-clear" id="qClear">✕</button>
+    </div>
+    <div class="tabs" id="tabs"></div>
+  </header>
+  <main>
+    <div class="list" id="list"></div>
+    <div class="empty" id="empty" style="display:none">
+      <div class="e-icon">📭</div>
+      <p id="emptyMsg">还没有知识条目，点右下角 + 新建</p>
+    </div>
+  </main>
+  <button class="fab" id="fab">＋</button>
+</div>
+
+<!-- detail / editor sheet -->
+<div class="backdrop" id="backdrop"></div>
+<div class="sheet" id="sheet">
+  <div class="grip"></div>
+  <div class="s-head" id="sHead">
+    <h2 id="sTitle"></h2>
+    <button class="s-btn fav" id="sFav">★</button>
+    <button class="s-btn" id="sClose">✕</button>
+  </div>
+  <div class="s-body" id="sBody">
+    <div class="s-tags" id="sTags"></div>
+    <div class="s-content" id="sContent"></div>
+    <div class="s-meta" id="sMeta"></div>
+  </div>
+  <div class="s-foot" id="sFoot">
+    <button class="save" id="sEdit">编辑</button>
+    <button class="del" id="sDel">删除</button>
+  </div>
+  <div class="editor" id="editor">
+    <label>标题</label>
+    <input id="eTitle" placeholder="条目标题">
+    <div class="row">
+      <div><label>分类</label><input id="eCat" placeholder="产品 / 流程 / FAQ" list="catList"></div>
+      <div><label>标签（逗号分隔）</label><input id="eTags" placeholder="计费, 退款"></div>
+    </div>
+    <datalist id="catList"></datalist>
+    <label>正文（支持 Markdown）</label>
+    <textarea id="eContent" placeholder="支持 **加粗**、- 列表、1. 列表、## 小标题、`代码`"></textarea>
+    <div class="row">
+      <button id="eSave" style="flex:1;height:44px;border-radius:12px;font-size:14.5px;font-weight:500;cursor:pointer;border:1px solid var(--primary);background:var(--primary);color:#fff;">保存</button>
+      <button id="eCancel" style="flex:1;height:44px;border-radius:12px;font-size:14.5px;cursor:pointer;border:1px solid var(--border);background:var(--card);color:var(--text);">取消</button>
+    </div>
+  </div>
+</div>
+
+<!-- confirm modal -->
+<div class="modal" id="modal">
+  <div class="mbox">
+    <h3 id="mTitle">确认</h3>
+    <p id="mText"></p>
+    <div class="mrow">
+      <button id="mCancel">取消</button>
+      <button class="ok" id="mOk">确认</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<input type="file" id="fileInput" accept="application/json" style="display:none">
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+/* ================= CONFIG（部署时填这两项） ================= */
+const SUPABASE_URL = "https://fowpxibytlglboejspae.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZvd3B4aWJ5dGxnbGJvZWpzcGFlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE2MTc0NzYsImV4cCI6MjEwNzE5MzQ3Nn0.b6PyoHwRqrWp7eEOFGQibyO5JMsLNb8LOYtAfoh2duw";
+/* ============================================================ */
+
+let supa = null;
+let session = null, teamId = null, teamName = '团队';
+let entries = [];           // 当前团队全部条目（内存缓存）
+let pending = [];           // 离线时暂存的写操作 {op,data,id}
+let activeCat = '全部';
+let currentId = null;
+let realTimeSub = null;
+
+const LS_OFF = 'kb_offline_sync_v2';
+
+/* ---------- init supabase ---------- */
+async function init(){
+  if(!SUPABASE_URL.includes('YOUR_PROJECT_REF')){
+    supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  }
+  // 载入离线暂存
+  pending = JSON.parse(localStorage.getItem(LS_OFF)||'[]');
+  bindEvents();
+  watchNet();
+  if(supa){
+    const { data } = await supa.auth.getSession();
+    if(data.session){ session = data.session; onAuthed(); }
+    else { showAuth(); }
+    supa.auth.onAuthStateChange((_e,s)=>{ session=s; if(s&&s.user) onAuthed(); else showAuth(); });
+  } else {
+    // 未配置 supabase：退回纯本地模式
+    showAuth();
+    document.getElementById('loginHint').textContent='未配置后端，使用本地模式';
+    document.getElementById('loginBtn').textContent='进入本地模式';
+  }
+}
+function showAuth(){document.getElementById('auth').style.display='flex';document.getElementById('app').style.display='none';}
+function onAuthed(){document.getElementById('auth').style.display='none';document.getElementById('app').style.display='block';loadTeam();}
+
+async function login(){
+  const email=document.getElementById('email').value.trim();
+  const pass=document.getElementById('pass').value;
+  if(!email||!pass){toast('请填写邮箱和密码');return;}
+  if(!supa){ onAuthed(); return; }   // 本地模式
+  const {data,err}=await supa.auth.signInWithPassword({email,password:pass});
+  if(err){
+    // 首次使用 -> signup
+    const r2=await supa.auth.signUp({email,password:pass});
+    if(r2.error) toast('登录失败：'+r2.error.message);
+    else { toast('账号已创建，请刷新后用邮箱登录'); }
+  } else { session=data.session; onAuthed(); }
+}
+
+async function loadTeam(){
+  if(!supa){ teamId='local'; teamName='本地模式'; renderAll(); return; }
+  if(!session||!session.user) return;
+  const {data}=await supa.from('team_members').select('teams(name)').eq('user_id',session.user.id);
+  if(data&&data[0]&&data[0].teams){
+    teamId=data[0].teams.id; teamName=data[0].teams.name||'团队';
+  } else {
+    // 没有团队：建一个
+    const {data:tm}=await supa.from('teams').insert({name:'我的团队'}).select('id').single();
+    if(tm){ await supa.from('team_members').insert({team_id:tm.id,user_id:session.user.id,role:'owner'}); teamId=tm.id; teamName='我的团队'; }
+  }
+  document.getElementById('teamName').textContent=teamName;
+  fetchAll(); subscribeRealtime();
+}
+
+/* ---------- fetch + realtime ---------- */
+async function fetchAll(){
+  if(!supa){ // 本地模式：从离线缓存还原
+    entries = JSON.parse(localStorage.getItem('kb_local_v2')||'[]');
+    renderAll(); return;
+  }
+  const {data,error}=await supa.from('knowledge').select('*').eq('team_id',teamId).order('updated_at',{ascending:false});
+  if(!error){ entries = (data||[]).map(norm); renderAll(); }
+  else toast('加载失败：'+error.message);
+}
+function norm(r){ return { id:r.id, team_id:r.team_id, title:r.title, category:r.category,
+  tags:r.tags||[], content:r.content||'', is_fav:!!r.is_fav, created_at:r.created_at, updated_at:r.updated_at }; }
+
+function subscribeRealtime(){
+  if(!supa||!realTimeSub) return;
+  realTimeSub = supa.channel('kb_'+teamId)
+    .on('postgres_changes',{event:'*',schema:'public',table:'knowledge',filter:'team_id='+teamId},
+       payload=>applyRemote(payload))
+    .subscribe();
+}
+function applyRemote(payload){
+  if(payload.eventType==='INSERT'){ const n=norm(payload.new); const i=entries.findIndex(e=>e.id===n.id); if(i>=0)entries[i]=n;else entries.unshift(n); }
+  else if(payload.eventType==='UPDATE'){ const i=entries.findIndex(e=>e.id===payload.new.id); if(i>=0)entries[i]=norm(payload.new); }
+  else if(payload.eventType==='DELETE'){ const i=entries.findIndex(e=>e.id===payload.old.id); if(i>=0)entries.splice(i,1); }
+  renderAll();
+}
+
+/* ---------- write ops（在线写库 + 离线暂存） ---------- */
+async function opInsert(rec){
+  const op={op:'insert',data:rec,id:rec.id||null};
+  if(supa && !isOffline()){
+    const {error}=await supa.from('knowledge').insert(rec);
+    if(error) toast('保存失败：'+error.message); else toast('已创建并同步');
+  } else {
+    entries.push(rec); saveLocal(); pending.push(op); toast('已离线保存，联网后同步');
+  }
+  renderAll();
+}
+async function opUpdate(id,patch){
+  const rec=entries.find(e=>e.id===id); if(!rec)return;
+  Object.assign(rec,patch);
+  if(supa && !isOffline()){
+    const {error}=await supa.from('knowledge').update({title:rec.title,category:rec.category,tags:rec.tags,content:rec.content}).eq('id',id);
+    if(error) toast('更新失败：'+error.message); else toast('已更新并同步');
+  } else {
+    saveLocal(); pending.push({op:'update',id,patch:{title:rec.title,category:rec.category,tags:rec.tags,content:rec.content}});
+    toast('已离线保存，联网后同步');
+  }
+  renderAll();
+}
+async function opDelete(id){
+  if(supa && !isOffline()){
+    const {error}=await supa.from('knowledge').delete().eq('id',id);
+    if(error) toast('删除失败：'+error.message); else toast('已删除并同步');
+  } else {
+    pending.push({op:'delete',id}); entries=entries.filter(e=>e.id!==id); saveLocal(); toast('已离线删除，联网后同步');
+  }
+  currentId=null; closeDetail(); renderAll();
+}
+function opFav(id){
+  const rec=entries.find(e=>e.id===id); if(!rec)return;
+  rec.is_fav=!rec.is_fav;
+  if(supa && !isOffline()){ supa.from('knowledge').update({is_fav:rec.is_fav}).eq('id',id).then(({error})=>{if(error)toast('收藏同步失败');}); }
+  else { saveLocal(); pending.push({op:'fav',id,fav:rec.is_fav}); }
+  renderAll();
+}
+
+/* ---------- offline flush ---------- */
+async function flushPending(){
+  if(!supa||!pending.length) return;
+  const ops=pending.slice(); pending=[];
+  for(const op of ops){
+    let ok=false;
+    if(op.op==='insert'){ op.data.id=op.data.id||crypto.randomUUID(); const {error}=await supa.from('knowledge').insert(op.data); ok=!error; }
+    else if(op.op==='update'){ const {error}=await supa.from('knowledge').update(op.patch).eq('id',op.id); ok=!error; }
+    else if(op.op==='delete'){ const {error}=await supa.from('knowledge').delete().eq('id',op.id); ok=!error; }
+    else if(op.op==='fav'){ const {error}=await supa.from('knowledge').update({is_fav:op.fav}).eq('id',op.id); ok=!error; }
+    if(!ok){ pending.unshift(op); break; }  // 中断则保留剩余
+  }
+  savePending();
+  if(!pending.length) toast('离线改动已同步');
+  fetchAll();
+}
+function savePending(){ localStorage.setItem(LS_OFF, JSON.stringify(pending)); }
+function saveLocal(){ if(!supa) localStorage.setItem('kb_local_v2', JSON.stringify(entries)); }
+
+async function isOffline(){ return !navigator.onLine; }
+function watchNet(){
+  window.addEventListener('online',()=>{ setNet(true); flushPending(); });
+  window.addEventListener('offline',()=>setNet(false));
+  setNet(navigator.onLine);
+}
+function setNet(on){
+  document.getElementById('netStatus').classList.toggle('off',!on);
+  document.getElementById('syncBanner').classList.toggle('on',!on && !!supa);
+}
+
+/* ---------- markdown / helpers ---------- */
+function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function md(src){
+  const lines=esc(src).split(/\r?\n/); let html='',inL=false,inO=false;
+  const close=()=>{if(inL){html+='</ul>';inL=false;}if(inO){html+='</ol>';inO=false;}};
+  const inline=t=>t.replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/\*(.+?)\*/g,'<i>$1</i>').replace(/`(.+?)`/g,'<code>$1</code>').replace(/\[(.+?)\]\((.+?)\)/g,'<a href="$2" target="_blank" rel="noopener">$1</a>');
+  for(let raw of lines){const l=raw.trim();if(l===''){close();continue;}let m;
+    if(m=l.match(/^###\s+(.*)/)){close();html+='<h3>'+inline(m[1])+'</h3>';continue;}
+    if(m=l.match(/^##\s+(.*)/)){close();html+='<h2>'+inline(m[1])+'</h2>';continue;}
+    if(m=l.match(/^#\s+(.*)/)){close();html+='<h1>'+inline(m[1])+'</h1>';continue;}
+    if(m=l.match(/^[-*]\s+(.*)/)){if(inO)close();if(!inL){html+='<ul>';inL=true;}html+='<li>'+inline(m[1])+'</li>';continue;}
+    if(m=l.match(/^\d+[.)]\s+(.*)/)){if(inL)close();if(!inO){html+='<ol>';inO=true;}html+='<li>'+inline(m[1])+'</li>';continue;}
+    close();html+='<p>'+inline(l)+'</p>';}
+  close();return html;
+}
+function summarize(s){return (s||'').replace(/[#>*`\n]/g,' ').replace(/\s+/g,' ').trim().slice(0,80);}
+function fmtTime(ts){if(!ts)return'';const d=new Date(ts),now=new Date();
+  if(d.toDateString()===now.toDateString())return'今天 '+d.getHours()+':'+String(d.getMinutes()).padStart(2,'0');
+  if(d.getFullYear()===now.getFullYear())return(d.getMonth()+1)+'月'+d.getDate()+'日';
+  return d.getFullYear()+'/'+(d.getMonth()+1)+'/'+d.getDate();}
+function hl(text,q){if(!q)return esc(text);const e=esc(text);const s=q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');return e.replace(new RegExp('('+s+')','gi'),'<mark>$1</mark>');}
+function escAttr(s){return (s||'').replace(/"/g,'&quot;');}
+function allCats(){const s=new Set();entries.forEach(e=>{if(e.category&&e.category!=='其他')s.add(e.category);});return['全部',...s];}
+
+/* ---------- render ---------- */
+function renderAll(){renderTabs();renderList();}
+function renderTabs(){
+  document.getElementById('tabs').innerHTML=allCats().map(c=>`<button class="tab${c===activeCat?' active':''}" data-cat="${escAttr(c)}">${esc(c)}</button>`).join('');
+  document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{activeCat=b.dataset.cat;renderAll();});
+  document.getElementById('catList').innerHTML=allCats().filter(c=>c!=='全部').map(c=>`<option value="${escAttr(c)}">`).join('');
+}
+function filtered(){
+  const q=document.getElementById('q').value.trim().toLowerCase();
+  let list=entries.slice();
+  if(activeCat!=='全部')list=list.filter(e=>e.category===activeCat);
+  if(q)list=list.filter(e=>[e.title,e.content,(e.tags||[]).join(' '),e.category].join(' ').toLowerCase().includes(q));
+  list.sort((a,b)=>(b.is_fav?1:0)-(a.is_fav?1:0)||(new Date(b.updated_at).getTime()-new Date(a.updated_at).getTime()));
+  return list;
+}
+function renderList(){
+  const q=document.getElementById('q').value.trim();
+  const list=filtered();const el=document.getElementById('list');
+  el.innerHTML=list.map(e=>{
+    const chips=(e.tags||[]).slice(0,3).map(t=>`<span class="chip tag">${esc(t)}</span>`).join('');
+    return `<div class="card" data-id="${e.id}"><div class="c-top">
+      <button class="c-fav${e.is_fav?' on':''}" data-fav="${e.id}">★</button>
+      <div class="c-body">
+        <h3>${hl(e.title,q)}</h3>
+        <div class="c-sum">${hl(summarize(e.content),q)}</div>
+        <div class="c-meta">${e.category&&e.category!=='其他'?`<span class="chip">${esc(e.category)}</span>`:''}${chips}<span class="c-time">${fmtTime(e.updated_at)}</span></div>
+      </div></div></div>`;
+  }).join('');
+  document.querySelectorAll('.card').forEach(c=>c.onclick=ev=>{if(ev.target.closest('[data-fav]'))return;openDetail(c.dataset.id);});
+  document.querySelectorAll('[data-fav]').forEach(b=>b.onclick=ev=>{ev.stopPropagation();opFav(b.dataset.fav);});
+  document.getElementById('empty').style.display=list.length?'none':'block';
+  document.getElementById('emptyMsg').textContent=q?'没有匹配的结果':'还没有知识条目，点右下角 + 新建';
+}
+
+/* ---------- detail / editor ---------- */
+function openDetail(id){
+  const e=entries.find(x=>x.id===id);if(!e)return;currentId=id;
+  document.getElementById('sTitle').textContent=e.title;
+  document.getElementById('sTags').innerHTML=((e.category&&e.category!=='其他')?`<span class="chip">${esc(e.category)}</span>`:'')+(e.tags||[]).map(t=>`<span class="chip tag">${esc(t)}</span>`).join('');
+  document.getElementById('sContent').innerHTML=md(e.content);
+  document.getElementById('sMeta').textContent='创建 '+fmtTime(e.created_at)+' · 更新 '+fmtTime(e.updated_at);
+  document.getElementById('sFav').classList.toggle('on',!!e.is_fav);
+  document.getElementById('editor').classList.remove('on');
+  document.getElementById('sBody').style.display='block';document.getElementById('sFoot').style.display='flex';document.getElementById('sHead').style.display='flex';
+  document.getElementById('sheet').classList.add('open');document.getElementById('backdrop').classList.add('on');
+}
+function openEditor(id){
+  const e=id?entries.find(x=>x.id===id):null;currentId=e?e.id:null;
+  document.getElementById('sBody').style.display='none';document.getElementById('sFoot').style.display='none';document.getElementById('sHead').style.display='none';
+  document.getElementById('editor').classList.add('on');
+  document.getElementById('eTitle').value=e?e.title:'';document.getElementById('eCat').value=e?(e.category||''):'';
+  document.getElementById('eTags').value=e?(e.tags||[]).join(', '):'';document.getElementById('eContent').value=e?e.content:'';
+  document.getElementById('sTitle').textContent=e?'编辑条目':'新建条目';
+  if(!document.getElementById('sheet').classList.contains('open')){document.getElementById('sheet').classList.add('open');document.getElementById('backdrop').classList.add('on');}
+}
+function closeDetail(){currentId=null;document.getElementById('sheet').classList.remove('open');document.getElementById('backdrop').classList.remove('on');}
+function saveEntry(){
+  const title=document.getElementById('eTitle').value.trim();if(!title){toast('请填写标题');return;}
+  const category=document.getElementById('eCat').value.trim()||'其他';
+  const tags=document.getElementById('eTags').value.split(/[,，]/).map(t=>t.trim()).filter(Boolean);
+  const content=document.getElementById('eContent').value;const now=new Date().toISOString();
+  if(currentId&&entries.find(x=>x.id===currentId)){ opUpdate(currentId,{title,category,tags,content,updated_at:now}); }
+  else { opInsert({id:supa?crypto.randomUUID():(Date.now().toString(36)),team_id:teamId,title,category,tags,content,is_fav:false,created_at:now,updated_at:now}); }
+  closeDetail();activeCat='全部';
+}
+function delEntry(){
+  if(!currentId)return;
+  confirmModal('删除这条知识？','删除后无法恢复。',()=>opDelete(currentId));
+}
+
+/* ---------- import / export ---------- */
+function exportJson(){
+  const data={version:1,team:teamName,exportedAt:new Date().toISOString(),entries:entries};
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='kb_'+new Date().toISOString().slice(0,10)+'.json';a.click();URL.revokeObjectURL(a.href);toast('已导出');
+}
+function importJson(file){
+  const r=new FileReader();
+  r.onload=()=>{try{const d=JSON.parse(r.result);const list=Array.isArray(d)?d:d.entries;if(!Array.isArray(list))throw 0;
+    let n=0;list.forEach(e=>{if(!e.title)return;const ex=entries.find(x=>x.id===e.id);
+      if(ex)Object.assign(ex,{title:e.title,category:e.category,tags:e.tags||[],content:e.content,updated_at:e.updated_at||new Date().toISOString()});
+      else{entries.push({id:e.id||crypto.randomUUID(),team_id:teamId,title:e.title,category:e.category||'其他',tags:e.tags||[],content:e.content||'',is_fav:!!e.is_fav,created_at:e.created_at||new Date().toISOString(),updated_at:e.updated_at||new Date().toISOString()});n++;}});
+    saveLocal();renderAll();toast('导入完成，本地新增 '+n+' 条');
+  }catch(e){toast('文件格式不正确');}};
+  r.readAsText(file);
+}
+
+/* ---------- modal / toast ---------- */
+let modalCb=null;
+function confirmModal(t,txt,cb){document.getElementById('mTitle').textContent=t;document.getElementById('mText').textContent=txt;modalCb=cb;document.getElementById('modal').classList.add('on');}
+function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('on');clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove('on'),1800);}
+
+/* ---------- events ---------- */
+function bindEvents(){
+  document.getElementById('loginBtn').onclick=login;
+  document.getElementById('email').onkeydown=e=>{if(e.key==='Enter')document.getElementById('pass').focus();};
+  document.getElementById('pass').onkeydown=e=>{if(e.key==='Enter')login();};
+  document.getElementById('q').addEventListener('input',renderList);
+  document.getElementById('qClear').onclick=()=>{document.getElementById('q').value='';renderList();document.getElementById('q').focus();};
+  document.getElementById('fab').onclick=()=>{closeDetail();openEditor(null);};
+  document.getElementById('sEdit').onclick=()=>openEditor(currentId);
+  document.getElementById('sDel').onclick=delEntry;
+  document.getElementById('sFav').onclick=()=>{if(currentId)opFav(currentId);};
+  document.getElementById('sClose').onclick=closeDetail;
+  document.getElementById('backdrop').onclick=closeDetail;
+  document.getElementById('eSave').onclick=saveEntry;
+  document.getElementById('eCancel').onclick=closeDetail;
+  document.getElementById('btnExp').onclick=exportJson;
+  document.getElementById('btnImp').onclick=()=>document.getElementById('fileInput').click();
+  document.getElementById('fileInput').onchange=e=>{if(e.target.files[0])importJson(e.target.files[0]);e.target.value='';};
+  document.getElementById('btnOut').onclick=()=>{if(supa)supa.auth.signOut();else{location.reload();}};
+  document.getElementById('mOk').onclick=()=>{document.getElementById('modal').classList.remove('on');if(modalCb)modalCb();modalCb=null;};
+  document.getElementById('mCancel').onclick=()=>{document.getElementById('modal').classList.remove('on');modalCb=null;};
+}
+
+/* ---------- boot ---------- */
+init();
+</script>
+</body>
+</html>
