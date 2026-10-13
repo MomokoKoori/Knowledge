@@ -137,6 +137,7 @@ main{padding:6px 16px calc(96px + env(safe-area-inset-bottom));}
     <div class="hbar">
       <span class="logo">知识库</span>
       <span class="team" id="teamName">团队</span>
+      <span id="statusLine" style="font:10px monospace;color:var(--muted);"></span>
       <span class="status" id="netStatus" title="同步状态"></span>
       <button class="ibtn" id="btnImp" title="导入备份">⇪</button>
       <button class="ibtn" id="btnExp" title="导出备份">⇩</button>
@@ -325,7 +326,13 @@ function finishTeam(){
   if(!teamId){ toast('团队初始化失败，请刷新'); return; }
   document.getElementById('teamName').textContent=teamName;
   fetchAll(); subscribeRealtime();
+  refreshStatusLine();
 }
+function refreshStatusLine(){
+  var el=document.getElementById('statusLine');
+  if(el){ el.textContent='session='+(!!(session&&session.user))+' team='+(teamId||'null'); }
+}
+setInterval(refreshStatusLine,3000);
 
 /* ---------- fetch + realtime ---------- */
 async function fetchAll(){
