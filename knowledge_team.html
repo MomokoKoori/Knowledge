@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
@@ -114,29 +114,7 @@ main{padding:6px 16px calc(96px + env(safe-area-inset-bottom));}
 </style>
 
 <body>
-﻿<script>
-/* ===== 调试兜底：白屏时在页面上显示错误，不依赖 F12 ===== */
-(function(){
-  function dbg(msg){
-    var d=document.getElementById('__dbg');
-    if(!d){ d=document.createElement('div'); d.id='__dbg';
-      d.style.cssText='position:fixed;top:0;left:0;right:0;z-index:9999;background:#c0392b;color:#fff;padding:10px 14px;font:13px/1.5 monospace;white-space:pre-wrap;';
-      document.body && document.body.appendChild(d); }
-    d.textContent += msg + '\n';
-  }
-  window.__dbg=dbg;
-  window.addEventListener('error',function(e){ dbg('[ERROR] '+(e.message||'unknown')+' @ '+(e.filename||'')+':'+(e.lineno||'')); });
-  window.addEventListener('unhandledrejection',function(e){ dbg('[PROMISE] '+(e.reason&&e.reason.message||e.reason)); });
-  document.addEventListener('DOMContentLoaded',function(){
-    setTimeout(function(){
-      if(!document.getElementById('auth').style.display || document.getElementById('auth').style.display==='none'){
-        dbg('[BOOT] 登录框未显示，当前 SUPABASE_URL='+(typeof SUPABASE_URL!=='undefined'?SUPABASE_URL:'(undefined)'));
-        dbg('[BOOT] supabase 已加载? '+(typeof window.supabase!=='undefined'));
-      }
-    },2500);
-  });
-})();
-</script>
+﻿
 
 <!-- login -->
 <div class="auth" id="auth" style="display:none">
@@ -307,23 +285,33 @@ async function login(){
 
 async function loadTeam(){
   if(!supa){ teamId='local'; teamName='本地模式'; renderAll(); return; }
-  if(!session||!session.user) return;
-  const {data}=await supa.from('team_members').select('teams(name)').eq('user_id',session.user.id);
+  if(!session||!session.user){ toast('登录态未就绪，稍后重试'); return; }
+  const myId=session.user.id;
+  // 1) 我已在某团队
+  const {data}=await supa.from('team_members').select('teams(name),team_id').eq('user_id',myId);
   if(data&&data[0]&&data[0].teams){
-    teamId=data[0].teams.id; teamName=data[0].teams.name||'团队';
-  } else {
-    // 没有团队：优先加入已存在的团队（团队共享），否则才建新团队
-    const {data:exist}=await supa.from('teams').select('id').limit(1);
-    if(exist && exist[0]){
-      teamId=exist[0].id;
-      await supa.from('team_members').insert({team_id:teamId,user_id:session.user.id,role:'member'}).maybeSingle();
-      const {data:tn}=await supa.from('teams').select('name').eq('id',teamId).maybeSingle();
-      teamName=(tn&&tn.name)||'团队';
+    teamId=data[0].team_id; teamName=data[0].teams.name||'团队';
+  }
+  else{
+    // 2) 没团队：加入已有团队（团队共享）
+    const {data:exist}=await supa.from('teams').select('id,name').limit(1);
+    if(exist && exist[0] && exist[0].id){
+      teamId=exist[0].id; teamName=exist[0].name||'团队';
+      await supa.from('team_members').insert({team_id:teamId,user_id:myId,role:'member'}).maybeSingle();
     } else {
-      const {data:tm}=await supa.from('teams').insert({name:'我的团队'}).select('id').single();
-      if(tm){ await supa.from('team_members').insert({team_id:tm.id,user_id:session.user.id,role:'owner'}); teamId=tm.id; teamName='我的团队'; }
+      // 3) 完全没有团队：建一个
+      const {data:tm,error:te}=await supa.from('teams').insert({name:'我的团队'}).select('id').single();
+      if(tm && tm.id){
+        teamId=tm.id; teamName='我的团队';
+        await supa.from('team_members').insert({team_id:teamId,user_id:myId,role:'owner'}).maybeSingle();
+      } else {
+        console.log('[loadTeam] 建团队失败', te);
+        toast('无法加入团队：'+(te?te.message:'未知'));
+        return;
+      }
     }
   }
+  if(!teamId){ console.log('[loadTeam] teamId 仍为空'); toast('团队初始化失败，请刷新'); return; }
   document.getElementById('teamName').textContent=teamName;
   fetchAll(); subscribeRealtime();
 }
