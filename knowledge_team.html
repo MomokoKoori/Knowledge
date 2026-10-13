@@ -289,13 +289,16 @@ async function login(){
   if(!email||!pass){toast('请填写邮箱和密码');return;}
   if(!supa){ onAuthed(); return; }   // 本地模式
   const {data,err}=await supa.auth.signInWithPassword({email,password:pass});
+  const hint=document.getElementById('loginHint');
   console.log('[login] signIn', err?('ERR: '+err.message):('OK user='+(data.user?data.user.email:'?')));
   if(err){
     const r2=await supa.auth.signUp({email,password:pass});
     console.log('[login] signUp', r2.error?('ERR: '+r2.error.message):('OK new user='+(r2.data.user?r2.data.user.email:'?')));
-    if(r2.error) toast('登录/注册失败：'+r2.error.message);
-    else { toast('账号已创建，请重新登录'); }
-  } else { session=data.session; onAuthed(); document.getElementById('loginHint').textContent='登录成功 user='+(data.user?data.user.email:'?'); }
+    if(r2.error){ hint.textContent='登录失败：'+r2.error.message; toast('登录/注册失败：'+r2.error.message); }
+    else { hint.textContent='账号已创建，请去邮箱验证后重新登录'; toast('账号已创建，请验证邮箱'); }
+  } else {
+    session=data.session; hint.textContent='登录成功 user='+(data.user?data.user.email:'?'); onAuthed();
+  }
 }
 
 async function loadTeam(){
