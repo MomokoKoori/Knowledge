@@ -265,6 +265,7 @@ async function init(){
   if(supa){
     const { data } = await supa.auth.getSession();
     session = data.session;
+    console.log('[boot] getSession', data.session?('OK '+data.session.user.email):'none (需登录)');
     if(data.session){ onAuthed(); }
     else { showAuth(); }
     supa.auth.onAuthStateChange((_e,s)=>{
@@ -288,12 +289,13 @@ async function login(){
   if(!email||!pass){toast('请填写邮箱和密码');return;}
   if(!supa){ onAuthed(); return; }   // 本地模式
   const {data,err}=await supa.auth.signInWithPassword({email,password:pass});
+  console.log('[login] signIn', err?('ERR: '+err.message):('OK user='+(data.user?data.user.email:'?')));
   if(err){
-    // 首次使用 -> signup
     const r2=await supa.auth.signUp({email,password:pass});
-    if(r2.error) toast('登录失败：'+r2.error.message);
-    else { toast('账号已创建，请刷新后用邮箱登录'); }
-  } else { session=data.session; onAuthed(); }
+    console.log('[login] signUp', r2.error?('ERR: '+r2.error.message):('OK new user='+(r2.data.user?r2.data.user.email:'?')));
+    if(r2.error) toast('登录/注册失败：'+r2.error.message);
+    else { toast('账号已创建，请重新登录'); }
+  } else { session=data.session; onAuthed(); document.getElementById('loginHint').textContent='登录成功 user='+(data.user?data.user.email:'?'); }
 }
 
 async function loadTeam(){
@@ -560,8 +562,9 @@ function bindEvents(){
 /* ---------- boot ---------- */
 function reportStatus(){
   var msg='supa='+(!!supa)+' session='+(!!(session&&session.user))+' user='+(session&&session.user?session.user.email:'-')+' teamId='+(teamId||'null')+' online='+(navigator.onLine)+' pending='+(pending.length);
-  document.getElementById('loginHint').textContent=msg;
-  console.log('[kb] '+msg);
+  var hint=document.getElementById('loginHint');
+  if(hint){ hint.textContent='状态: '+msg; } console.log('[status]',msg);
+  setTimeout(function(){ reportStatus(); },4000);
 }
 window.addEventListener('load',function(){ setTimeout(reportStatus,3000); });
 init();
