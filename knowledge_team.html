@@ -611,21 +611,23 @@ function bindEvents(){
 }
 
 /* ---------- 注册 ---------- */
-document.getElementById('regBtn').onclick=async function(){
-  var email=document.getElementById('email').value.trim();
-  var pass=document.getElementById('pass').value;
-  if(!email||!pass){toast('请填写邮箱和密码');return;}
-  if(!supa){ toast('本地模式无需注册'); onAuthed(); return; }
-  var hint=document.getElementById('loginHint');
-  hint.textContent='注册中…';
-  var r=await supa.auth.signUp({email:email,password:pass});
-  if(r.error){ hint.textContent='注册失败：'+r.error.message; toast('注册失败：'+r.error.message); }
-  else {
-    // Supabase 默认需邮箱验证
-    hint.textContent='注册成功！请去「'+email+'」收验证邮件，点链接后再点「登录」';
-    toast('请去邮箱验证');
-  }
-};
+document.addEventListener('DOMContentLoaded',function(){
+  var rb=document.getElementById('regBtn');
+  if(!rb) return;
+  rb.addEventListener('click',async function(){
+    var email=document.getElementById('email').value.trim();
+    var pass=document.getElementById('pass').value;
+    var hint=document.getElementById('loginHint');
+    if(!email||!pass){ hint.textContent='请填写邮箱和密码'; return; }
+    if(!supa){ hint.textContent='supa 未初始化（库没加载）'; return; }
+    hint.textContent='注册中，请稍候…';
+    try{
+      var r=await supa.auth.signUp({email:email,password:pass});
+      if(r.error){ hint.textContent='注册失败：'+r.error.message; }
+      else { hint.textContent='注册成功！请去「'+email+'」收验证邮件，点链接后再点「登录」'; }
+    }catch(e){ hint.textContent='注册异常：'+e.message; }
+  });
+});
 
 /* ---------- 诊断：把登录真实结果打到页面 ---------- */
 document.getElementById('diagBtn').onclick=async function(){
