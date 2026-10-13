@@ -287,31 +287,42 @@ async function loadTeam(){
   if(!supa){ teamId='local'; teamName='本地模式'; renderAll(); return; }
   if(!session||!session.user){ toast('登录态未就绪，稍后重试'); return; }
   const myId=session.user.id;
-  // 1) 我已在某团队
-  const {data}=await supa.from('team_members').select('teams(name),team_id').eq('user_id',myId);
-  if(data&&data[0]&&data[0].teams){
-    teamId=data[0].team_id; teamName=data[0].teams.name||'团队';
+  // 1) 我已在某团队 → 直接用
+  const {data}=await supa.from('team_members').select('teams(name),team_id').eq('user_id',myId).limit(1);
+  if(data&&data[0]&&data[0].team_id){
+    teamId=data[0].team_id; teamName=(data[0].teams&&data[0].teams.name)||'团队';
+    finishTeam(); return;
   }
-  else{
-    // 2) 没团队：加入已有团队（团队共享）
-    const {data:exist}=await supa.from('teams').select('id,name').limit(1);
-    if(exist && exist[0] && exist[0].id){
-      teamId=exist[0].id; teamName=exist[0].name||'团队';
-      await supa.from('team_members').insert({team_id:teamId,user_id:myId,role:'member'}).maybeSingle();
-    } else {
-      // 3) 完全没有团队：建一个
-      const {data:tm,error:te}=await supa.from('teams').insert({name:'我的团队'}).select('id').single();
-      if(tm && tm.id){
-        teamId=tm.id; teamName='我的团队';
-        await supa.from('team_members').insert({team_id:teamId,user_id:myId,role:'owner'}).maybeSingle();
-      } else {
-        console.log('[loadTeam] 建团队失败', te);
-        toast('无法加入团队：'+(te?te.message:'未知'));
-        return;
-      }
+  // 2) 没团队：优先加入名为「默认团队」的；否则加入成员最多的；否则加入第一个；都没有才新建
+  const {data:allTeams}=await supa.from('teams').select('id,name');
+  if(allTeams && allTeams.length){
+    // 2.1 找「默认团队」
+    let target=allTeams.find(t=>t.name==='默认团队') || null;
+    if(!target){
+      // 2.2 加入成员最多的团队
+      const counts={};
+      const {data:mrows}=await supa.from('team_members').select('team_id');
+      (mrows||[]).forEach(r=>{counts[r.team_id]=(counts[r.team_id]||0)+1;});
+      target=allTeams.slice().sort((a,b)=>(counts[b.id]||0)-(counts[a.id]||0))[0];
     }
+    teamId=target.id; teamName=target.name||'团队';
+    const ins=await supa.from('team_members').insert({team_id:teamId,user_id:myId,role:'member'}).maybeSingle();
+    if(ins.error) console.log('[loadTeam] 加入团队失败', ins.error.message);
+    finishTeam(); return;
   }
-  if(!teamId){ console.log('[loadTeam] teamId 仍为空'); toast('团队初始化失败，请刷新'); return; }
+  // 3) 一个团队都没有：新建
+  const {data:tm,error:te}=await supa.from('teams').insert({name:'默认团队'}).select('id').maybeSingle();
+  if(tm && tm.id){
+    teamId=tm.id; teamName='默认团队';
+    await supa.from('team_members').insert({team_id:teamId,user_id:myId,role:'owner'}).maybeSingle();
+    finishTeam();
+  } else {
+    console.log('[loadTeam] 建团队失败', te);
+    toast('无法加入团队：'+(te?te.message:'未知'));
+  }
+}
+function finishTeam(){
+  if(!teamId){ toast('团队初始化失败，请刷新'); return; }
   document.getElementById('teamName').textContent=teamName;
   fetchAll(); subscribeRealtime();
 }
