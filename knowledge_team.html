@@ -264,9 +264,14 @@ async function init(){
   watchNet();
   if(supa){
     const { data } = await supa.auth.getSession();
-    if(data.session){ session = data.session; onAuthed(); }
+    session = data.session;
+    if(data.session){ onAuthed(); }
     else { showAuth(); }
-    supa.auth.onAuthStateChange((_e,s)=>{ session=s; if(s&&s.user) onAuthed(); else showAuth(); });
+    supa.auth.onAuthStateChange((_e,s)=>{
+      session=s;
+      if(s&&s.user){ if(!document.getElementById('app').style.display || document.getElementById('app').style.display==='none') onAuthed(); }
+      else { showAuth(); }
+    });
   } else {
     // 未配置 supabase：退回纯本地模式
     showAuth();
@@ -554,7 +559,7 @@ function bindEvents(){
 
 /* ---------- boot ---------- */
 function reportStatus(){
-  var msg='supa='+(!!supa)+' session='+(!!(session&&session.user))+' teamId='+(teamId||'null')+' online='+(navigator.onLine)+' pending='+(pending.length);
+  var msg='supa='+(!!supa)+' session='+(!!(session&&session.user))+' user='+(session&&session.user?session.user.email:'-')+' teamId='+(teamId||'null')+' online='+(navigator.onLine)+' pending='+(pending.length);
   document.getElementById('loginHint').textContent=msg;
   console.log('[kb] '+msg);
 }
