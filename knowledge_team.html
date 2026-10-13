@@ -146,7 +146,9 @@ main{padding:6px 16px calc(96px + env(safe-area-inset-bottom));}
     <input type="email" id="email" placeholder="邮箱" autocomplete="off">
     <input type="password" id="pass" placeholder="密码">
     <button class="abtn" id="loginBtn">登录</button>
+    <button class="abtn" id="diagBtn" style="background:#555;margin-top:8px;font-size:13px;">诊断登录（显示真实结果）</button>
     <div class="ahint" id="loginHint">首次使用会自动创建账号</div>
+    <div id="diagOut" style="font:11px monospace;color:#333;background:#f3f4f8;padding:8px;border-radius:8px;margin-top:8px;white-space:pre-wrap;display:none;"></div>
   </div>
 </div>
 
@@ -564,6 +566,22 @@ function bindEvents(){
   document.getElementById('mCancel').onclick=()=>{document.getElementById('modal').classList.remove('on');modalCb=null;};
 }
 
+/* ---------- 诊断：把登录真实结果打到页面 ---------- */
+document.getElementById('diagBtn').onclick=async function(){
+  var out=document.getElementById('diagOut'); out.style.display='block';
+  var email=document.getElementById('email').value.trim();
+  var pass=document.getElementById('pass').value;
+  out.textContent='supa='+(!!supa)+'\nlib='+(!!(window.supabase&&window.supabase.createClient))+'\nURL='+SUPABASE_URL+'\nKEY前20='+SUPABASE_ANON_KEY.slice(0,20)+'\n---\n';
+  if(!supa){ out.textContent+='[supa 为 null，未初始化]\n'; return; }
+  try{
+    var r=await supa.auth.signInWithPassword({email:email,password:pass});
+    out.textContent+='signIn err='+(r.error?('ERR: '+r.error.message):'无')+'\n';
+    out.textContent+='signIn user='+(r.data&&r.data.user?r.data.user.email:'无')+'\n';
+    var g=await supa.auth.getSession();
+    out.textContent+='getSession='+(g.data.session?('有 '+g.data.session.user.email):'无')+'\n';
+  }catch(e){ out.textContent+='异常: '+e.message+'\n'; }
+};
+
 /* ---------- boot ---------- */
 function reportStatusText(){ return 'supa='+(!!supa)+' session='+(!!(session&&session.user))+' user='+(session&&session.user?session.user.email:'-')+' teamId='+(teamId||'null')+' online='+(navigator.onLine)+' pending='+(pending.length); }
 function reportStatus(){
@@ -583,7 +601,6 @@ async function waitSupaLib(){
 window.addEventListener('DOMContentLoaded',async function(){
   await waitSupaLib();
   await init();
-  setTimeout(reportStatus,1000);
 });
 </script>
 </body>
