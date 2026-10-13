@@ -124,6 +124,7 @@ main{padding:6px 16px calc(96px + env(safe-area-inset-bottom));}
     <input type="email" id="email" placeholder="邮箱" autocomplete="off">
     <input type="password" id="pass" placeholder="密码">
     <button class="abtn" id="loginBtn">登录</button>
+    <button class="abtn" id="regBtn" style="background:#2f9e6f;margin-top:8px;">注册新账号</button>
     <button class="abtn" id="diagBtn" style="background:#555;margin-top:8px;font-size:13px;">诊断登录（显示真实结果）</button>
     <div class="ahint" id="loginHint">首次使用会自动注册并需邮箱验证；已验证邮箱可直接登录</div>
     <div id="diagOut" style="font:11px monospace;color:#333;background:#f3f4f8;padding:8px;border-radius:8px;margin-top:8px;white-space:pre-wrap;display:none;"></div>
@@ -314,7 +315,14 @@ async function login(){
 
 async function loadTeam(){
   if(!supa){ teamId='local'; teamName='本地模式'; renderAll(); return; }
-  if(!session||!session.user){ toast('登录态未就绪，稍后重试'); return; }
+  if(!session||!session.user){
+    // 登录态可能瞬时为空（token 刷新）：自动重试，不硬卡
+    toast('登录态未就绪，5 秒后自动重试');
+    setTimeout(async()=>{ 
+      try{ var g=await supa.auth.getSession(); if(g.data.session){ session=g.data.session; loadTeam(); } }catch(e){}
+    },5000);
+    return;
+  }
   const myId=session.user.id;
   // 1) 我已在某团队 → 直接用
   const {data}=await supa.from('team_members').select('teams(name),team_id').eq('user_id',myId).limit(1);
@@ -601,6 +609,23 @@ function bindEvents(){
   document.getElementById('mOk').onclick=()=>{document.getElementById('modal').classList.remove('on');if(modalCb)modalCb();modalCb=null;};
   document.getElementById('mCancel').onclick=()=>{document.getElementById('modal').classList.remove('on');modalCb=null;};
 }
+
+/* ---------- 注册 ---------- */
+document.getElementById('regBtn').onclick=async function(){
+  var email=document.getElementById('email').value.trim();
+  var pass=document.getElementById('pass').value;
+  if(!email||!pass){toast('请填写邮箱和密码');return;}
+  if(!supa){ toast('本地模式无需注册'); onAuthed(); return; }
+  var hint=document.getElementById('loginHint');
+  hint.textContent='注册中…';
+  var r=await supa.auth.signUp({email:email,password:pass});
+  if(r.error){ hint.textContent='注册失败：'+r.error.message; toast('注册失败：'+r.error.message); }
+  else {
+    // Supabase 默认需邮箱验证
+    hint.textContent='注册成功！请去「'+email+'」收验证邮件，点链接后再点「登录」';
+    toast('请去邮箱验证');
+  }
+};
 
 /* ---------- 诊断：把登录真实结果打到页面 ---------- */
 document.getElementById('diagBtn').onclick=async function(){
