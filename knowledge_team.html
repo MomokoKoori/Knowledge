@@ -249,6 +249,15 @@ async function init(){
     console.log('[boot] getSession', data.session?('OK '+data.session.user.email):'none (需登录)');
     if(data.session){ onAuthed(); }
     else { showAuth(); }
+    // 兜底：若 session 因 token 刷新瞬时为 null，5 秒后重取一次
+    setTimeout(async()=>{
+      try{
+        if(!session && supa){
+          const g=await supa.auth.getSession();
+          if(g.data.session){ session=g.data.session; onAuthed(); console.log('[boot] 延迟恢复 session'); }
+        }
+      }catch(e){ console.log('[boot] 延迟取 session 失败', e); }
+    },5000);
     supa.auth.onAuthStateChange((_e,s)=>{
       session=s;
       if(s&&s.user){ if(!document.getElementById('app').style.display || document.getElementById('app').style.display==='none') onAuthed(); }
