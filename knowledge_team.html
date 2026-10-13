@@ -574,6 +574,22 @@ document.getElementById('diagBtn').onclick=async function(){
   out.textContent='supa='+(!!supa)+'\nlib='+(!!(window.supabase&&window.supabase.createClient))+'\nURL='+SUPABASE_URL+'\nKEY前20='+SUPABASE_ANON_KEY.slice(0,20)+'\n---\n';
   if(!supa){ out.textContent+='[supa 为 null，未初始化]\n'; return; }
   try{
+    // 先探网络/CORS：直接打 auth token 端点
+    var probe=await fetch(SUPABASE_URL+'/auth/v1/token?grant_type=password',{method:'POST',
+      headers:{'Content-Type':'application/json','apikey':SUPABASE_ANON_KEY},
+      body:JSON.stringify({email:email,password:pass})});
+    out.textContent+='probe /auth/v1/token => HTTP '+probe.status+'\n';
+    if(probe.status===401){ out.textContent+='=> 邮箱/密码不对\n'; }
+    else if(probe.status===200){ out.textContent+='=> 网络通，auth 正常\n'; }
+    else if(probe.status>=500){ out.textContent+='=> 服务端错误，看 Supabase 控制台\n'; }
+  }catch(netErr){
+    out.textContent+='probe 网络异常: '+netErr.message+'\n';
+    out.textContent+='=> CORS 被拦或跨域不通。检查：1) 浏览器是否 HTTPS 访问 2) 是否被公司代理拦 3) 换 4G 手机网试\n';
+    out.textContent+='尝试 fetch Supabase 根: ';
+    try{ var rr=await fetch(SUPABASE_URL,{method:'GET'}); out.textContent+='根 HTTP '+rr.status+'\n'; }
+    catch(e2){ out.textContent+='根也异常: '+e2.message+'\n'; }
+  }
+  try{
     var r=await supa.auth.signInWithPassword({email:email,password:pass});
     out.textContent+='signIn err='+(r.error?('ERR: '+r.error.message):'无')+'\n';
     out.textContent+='signIn user='+(r.data&&r.data.user?r.data.user.email:'无')+'\n';
