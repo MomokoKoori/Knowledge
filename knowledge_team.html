@@ -356,13 +356,15 @@ function applyRemote(payload){
 
 /* ---------- write ops（在线写库 + 离线暂存） ---------- */
 async function opInsert(rec){
-  const op={op:'insert',data:rec,id:rec.id||null};
-  if(supa && !isOffline()){
-    const {error}=await supa.from('knowledge').insert(rec);
-    if(error) toast('保存失败：'+error.message); else toast('已创建并同步');
-  } else {
-    entries.push(rec); saveLocal(); pending.push(op); toast('已离线保存，联网后同步');
+  rec.team_id = rec.team_id || teamId;
+  const op={op:'insert',data:rec};
+  let sent=false;
+  if(supa && navigator.onLine && teamId && teamId!=='local'){
+    const r=await supa.from('knowledge').insert(rec);
+    if(!r.error){ sent=true; toast('已创建并同步'); }
+    else { console.log('[opInsert] 写库失败', r.error.message); toast('保存失败：'+r.error.message); }
   }
+  if(!sent){ entries.push(rec); saveLocal(); pending.push(op); toast('暂存本地，联网后自动同步'); }
   renderAll();
 }
 async function opUpdate(id,patch){
