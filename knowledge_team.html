@@ -355,13 +355,13 @@ async function opInsert(rec){
 async function opUpdate(id,patch){
   const rec=entries.find(e=>e.id===id); if(!rec)return;
   Object.assign(rec,patch);
-  if(supa && !isOffline()){
-    const {error}=await supa.from('knowledge').update({title:rec.title,category:rec.category,tags:rec.tags,content:rec.content}).eq('id',id);
-    if(error) toast('更新失败：'+error.message); else toast('已更新并同步');
-  } else {
-    saveLocal(); pending.push({op:'update',id,patch:{title:rec.title,category:rec.category,tags:rec.tags,content:rec.content}});
-    toast('已离线保存，联网后同步');
+  const patchBody={title:rec.title,category:rec.category,tags:rec.tags,content:rec.content};
+  let sent=false;
+  if(supa && navigator.onLine){
+    const r=await supa.from('knowledge').update(patchBody).eq('id',id);
+    if(!r.error){ sent=true; toast('已更新并同步'); }
   }
+  if(!sent){ saveLocal(); pending.push({op:'update',id,patch:patchBody}); toast('暂存本地，联网后自动同步'); }
   renderAll();
 }
 async function opDelete(id){
@@ -387,7 +387,7 @@ async function flushPending(){
   const ops=pending.slice(); pending=[];
   for(const op of ops){
     let ok=false;
-    if(op.op==='insert'){ op.data.id=op.data.id||crypto.randomUUID(); const {error}=await supa.from('knowledge').insert(op.data); ok=!error; }
+    if(op.op==='insert'){ op.data.id=op.data.id||crypto.randomUUID(); const r=await supa.from('knowledge').insert(op.data); console.log('[flush] insert',op.data.title,r.error?('err:'+r.error.message):'ok'); ok=!r.error; }
     else if(op.op==='update'){ const {error}=await supa.from('knowledge').update(op.patch).eq('id',op.id); ok=!error; }
     else if(op.op==='delete'){ const {error}=await supa.from('knowledge').delete().eq('id',op.id); ok=!error; }
     else if(op.op==='fav'){ const {error}=await supa.from('knowledge').update({is_fav:op.fav}).eq('id',op.id); ok=!error; }
@@ -408,7 +408,9 @@ function watchNet(){
 }
 function setNet(on){
   document.getElementById('netStatus').classList.toggle('off',!on);
-  document.getElementById('syncBanner').classList.toggle('on',!on && !!supa);
+  const banner=document.getElementById('syncBanner');
+  if(on && pending.length && supa){ banner.classList.add('on'); banner.textContent='有 '+pending.length+' 条待同步，正在回传…'; setTimeout(()=>{ if(pending.length===0){banner.classList.remove('on'); banner.textContent='离线模式，改动暂存本地，联网后自动同步';} else {banner.textContent='有 '+pending.length+' 条待同步，稍后自动重试';} },1500); }
+  else banner.classList.toggle('on',!on && !!supa);
 }
 
 /* ---------- markdown / helpers ---------- */
@@ -551,6 +553,12 @@ function bindEvents(){
 }
 
 /* ---------- boot ---------- */
+function reportStatus(){
+  var msg='supa='+(!!supa)+' session='+(!!(session&&session.user))+' teamId='+(teamId||'null')+' online='+(navigator.onLine)+' pending='+(pending.length);
+  document.getElementById('loginHint').textContent=msg;
+  console.log('[kb] '+msg);
+}
+window.addEventListener('load',function(){ setTimeout(reportStatus,3000); });
 init();
 </script>
 </body>
