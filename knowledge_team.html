@@ -290,6 +290,7 @@ async function login(){
   if(!supa){ onAuthed(); return; }   // 本地模式
   const {data,err}=await supa.auth.signInWithPassword({email,password:pass});
   const hint=document.getElementById('loginHint');
+  hint.textContent='登录中…';
   console.log('[login] signIn', err?('ERR: '+err.message):('OK user='+(data.user?data.user.email:'?')));
   if(err){
     const r2=await supa.auth.signUp({email,password:pass});
@@ -297,7 +298,8 @@ async function login(){
     if(r2.error){ hint.textContent='登录失败：'+r2.error.message; toast('登录/注册失败：'+r2.error.message); }
     else { hint.textContent='账号已创建，请去邮箱验证后重新登录'; toast('账号已创建，请验证邮箱'); }
   } else {
-    session=data.session; hint.textContent='登录成功 user='+(data.user?data.user.email:'?'); onAuthed();
+    session=data.session; onAuthed();
+    setTimeout(function(){ hint.textContent='状态: '+reportStatusText(); },1500);
   }
 }
 
@@ -563,14 +565,26 @@ function bindEvents(){
 }
 
 /* ---------- boot ---------- */
+function reportStatusText(){ return 'supa='+(!!supa)+' session='+(!!(session&&session.user))+' user='+(session&&session.user?session.user.email:'-')+' teamId='+(teamId||'null')+' online='+(navigator.onLine)+' pending='+(pending.length); }
 function reportStatus(){
-  var msg='supa='+(!!supa)+' session='+(!!(session&&session.user))+' user='+(session&&session.user?session.user.email:'-')+' teamId='+(teamId||'null')+' online='+(navigator.onLine)+' pending='+(pending.length);
   var hint=document.getElementById('loginHint');
-  if(hint){ hint.textContent='状态: '+msg; } console.log('[status]',msg);
-  setTimeout(function(){ reportStatus(); },4000);
+  if(hint && document.getElementById('auth').style.display!=='none'){ hint.textContent='状态: '+reportStatusText(); }
 }
-window.addEventListener('load',function(){ setTimeout(reportStatus,3000); });
-init();
+async function waitSupaLib(){
+  var t=0,max=20000;
+  while(t<max){
+    if(window.supabase && window.supabase.createClient) return true;
+    await new Promise(r=>setTimeout(r,500)); t+=500;
+    var hint=document.getElementById('loginHint');
+    if(hint && document.getElementById('auth').style.display!=='none') hint.textContent='加载 Supabase 库中…'+Math.round(t/1000)+'s';
+  }
+  return false;
+}
+window.addEventListener('DOMContentLoaded',async function(){
+  await waitSupaLib();
+  await init();
+  setTimeout(reportStatus,1000);
+});
 </script>
 </body>
 </html>
