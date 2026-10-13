@@ -125,7 +125,7 @@ main{padding:6px 16px calc(96px + env(safe-area-inset-bottom));}
     <input type="password" id="pass" placeholder="密码">
     <button class="abtn" id="loginBtn">登录</button>
     <button class="abtn" id="diagBtn" style="background:#555;margin-top:8px;font-size:13px;">诊断登录（显示真实结果）</button>
-    <div class="ahint" id="loginHint">首次使用会自动创建账号</div>
+    <div class="ahint" id="loginHint">首次使用会自动注册并需邮箱验证；已验证邮箱可直接登录</div>
     <div id="diagOut" style="font:11px monospace;color:#333;background:#f3f4f8;padding:8px;border-radius:8px;margin-top:8px;white-space:pre-wrap;display:none;"></div>
   </div>
 </div>
@@ -278,18 +278,37 @@ async function login(){
   const pass=document.getElementById('pass').value;
   if(!email||!pass){toast('请填写邮箱和密码');return;}
   if(!supa){ onAuthed(); return; }   // 本地模式
-  const {data,err}=await supa.auth.signInWithPassword({email,password:pass});
   const hint=document.getElementById('loginHint');
   hint.textContent='登录中…';
-  console.log('[login] signIn', err?('ERR: '+err.message):('OK user='+(data.user?data.user.email:'?')));
-  if(err){
-    const r2=await supa.auth.signUp({email,password:pass});
-    console.log('[login] signUp', r2.error?('ERR: '+r2.error.message):('OK new user='+(r2.data.user?r2.data.user.email:'?')));
-    if(r2.error){ hint.textContent='登录失败：'+r2.error.message; toast('登录/注册失败：'+r2.error.message); }
-    else { hint.textContent='账号已创建，请去邮箱验证后重新登录'; toast('账号已创建，请验证邮箱'); }
-  } else {
+  const {data,err}=await supa.auth.signInWithPassword({email,password:pass});
+  if(!err){
+    // 登录成功
     session=data.session; onAuthed();
-    setTimeout(function(){ hint.textContent='状态: '+reportStatusText(); },1500);
+    setTimeout(function(){ refreshStatusLine(); },1000);
+    return;
+  }
+  // 登录失败：判断是不是"账号不存在" → 走注册
+  const isNoUser=/Invalid login credentials|Invalid Login|does not exist/i.test(err.message);
+  if(isNoUser){
+    hint.textContent='首次使用，正在注册…';
+    const r2=await supa.auth.signUp({email,password:pass});
+    if(r2.error){ hint.textContent='注册失败：'+r2.error.message; toast('注册失败：'+r2.error.message); }
+    else {
+      // 注册成功但需邮箱验证：明确引导
+      hint.textContent='注册成功！请去邮箱收验证邮件，点链接后回来重新登录';
+      toast('请去邮箱验证，再登录');
+      // 30 秒后自动重试登录（验证完回来可直接进）
+      setInterval(async()=>{
+        try{
+          const chk=await supa.auth.signInWithPassword({email,password:pass});
+          if(!chk.error){ session=chk.data.session; onAuthed(); toast('验证完成，已登录'); refreshStatusLine(); }
+        }catch(e){}
+      },30000);
+    }
+  } else {
+    // 账号存在但密码错 / 未验证等
+    hint.textContent='登录失败：'+err.message;
+    toast('登录失败：'+err.message);
   }
 }
 
