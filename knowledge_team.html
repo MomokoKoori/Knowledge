@@ -215,6 +215,8 @@ main{padding:6px 16px calc(96px + env(safe-area-inset-bottom));}
 /* ================= CONFIG（部署时填这两项） ================= */
 const SUPABASE_URL = "https://fowpxibytlglboejspae.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZvd3B4aWJ5dGxnbGJvZWpzcGFlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE2MTc0NzYsImV4cCI6MjEwNzE5MzQ3Nn0.b6PyoHwRqrWp7eEOFGQibyO5JMsLNb8LOYtAfoh2duw";
+// 团队统一入口：新成员自动加入这个团队
+const TEAM_ID = "776b7a23-7092-4a2a-b296-581850104dbc";
 /* ============================================================ */
 
 let supa = null;
@@ -330,18 +332,18 @@ async function loadTeam(){
     teamId=data[0].team_id; teamName=(data[0].teams&&data[0].teams.name)||'团队';
     finishTeam(); return;
   }
-  // 2) 没团队：优先加入名为「默认团队」的；否则加入成员最多的；否则加入第一个；都没有才新建
+  // 2) 没团队：加入固定团队 TEAM_ID（团队成员统一进这里）；找不到再回退
+  const {data:match}=await supa.from('teams').select('id,name').eq('id',TEAM_ID).limit(1);
+  if(match && match[0]){
+    teamId=match[0].id; teamName=match[0].name||'团队';
+    const ins=await supa.from('team_members').insert({team_id:teamId,user_id:myId,role:'member'}).maybeSingle();
+    if(ins.error) console.log('[loadTeam] 加入团队失败', ins.error.message);
+    finishTeam(); return;
+  }
+  // 2b) 固定团队不存在：找「默认团队」或成员最多的
   const {data:allTeams}=await supa.from('teams').select('id,name');
   if(allTeams && allTeams.length){
-    // 2.1 找「默认团队」
-    let target=allTeams.find(t=>t.name==='默认团队') || null;
-    if(!target){
-      // 2.2 加入成员最多的团队
-      const counts={};
-      const {data:mrows}=await supa.from('team_members').select('team_id');
-      (mrows||[]).forEach(r=>{counts[r.team_id]=(counts[r.team_id]||0)+1;});
-      target=allTeams.slice().sort((a,b)=>(counts[b.id]||0)-(counts[a.id]||0))[0];
-    }
+    let target=allTeams.find(t=>t.name==='默认团队') || allTeams[0];
     teamId=target.id; teamName=target.name||'团队';
     const ins=await supa.from('team_members').insert({team_id:teamId,user_id:myId,role:'member'}).maybeSingle();
     if(ins.error) console.log('[loadTeam] 加入团队失败', ins.error.message);
