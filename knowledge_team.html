@@ -157,6 +157,22 @@ main{padding:8px 16px calc(96px + env(safe-area-inset-bottom));}
 .editor .row{display:flex; gap:10px;}
 .editor .row > div{flex:1;}
 .editor label{font-size:11.5px; color:var(--muted); display:block; margin-bottom:5px; font-weight:600; letter-spacing:.4px; text-transform:uppercase;}
+.webimport{display:flex; flex-direction:column; gap:8px;}
+.webimport .wi-row{display:flex; gap:8px;}
+.webimport .wi-row input{flex:1; height:42px; border:1.5px solid var(--border); border-radius:11px; background:#fafbfe; padding:0 12px; font-size:14px; outline:none; font-family:inherit; min-width:0; transition:border-color .15s, box-shadow .15s;}
+.webimport .wi-row input:focus{border-color:var(--primary); box-shadow:0 0 0 3px rgba(59,91,219,.12); background:#fff;}
+.webimport .wi-btn{flex:0 0 auto; width:64px; height:42px; border:none; border-radius:11px; background:var(--auth-grad); color:#fff; font-size:13px; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:4px; box-shadow:0 4px 10px rgba(43,62,143,.28); font-family:inherit; transition:transform .1s, filter .15s;}
+.webimport .wi-btn:active{transform:scale(.95);}
+.webimport .wi-btn:disabled{opacity:.6; cursor:default;}
+.webimport .wi-btn svg{width:14px; height:14px; stroke-width:2.2;}
+.webimport .wi-sub{display:flex; align-items:center; gap:10px; font-size:12px; color:var(--muted);}
+.webimport .wi-sub button{border:none; background:none; color:var(--primary); font-size:12px; font-weight:500; cursor:pointer; padding:0; font-family:inherit;}
+.webimport .wi-sub button:hover{text-decoration:underline;}
+.webimport .wi-sub span{min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+/* detail: source link */
+.s-src{margin-top:10px; padding:8px 10px; background:var(--primary-soft); border-radius:10px; font-size:12.5px; color:var(--primary); display:flex; align-items:center; gap:7px; text-decoration:none; min-width:0;}
+.s-src svg{width:15px; height:15px; flex:0 0 auto; stroke-width:2;}
+.s-src .s-src-t{overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
 /* ---- modal / toast / syncbanner ---- */
 .modal{position:fixed; inset:0; background:rgba(20,24,60,.45); z-index:70; display:none; align-items:center; justify-content:center; padding:24px;}
 .modal.on{display:flex;}
@@ -260,6 +276,7 @@ main{padding:8px 16px calc(96px + env(safe-area-inset-bottom));}
   <div class="s-body" id="sBody">
     <div class="s-tags" id="sTags"></div>
     <div class="s-content" id="sContent"></div>
+    <div class="s-src" id="sSrc" style="display:none" title="打开原始网页"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M15 6v3"/><path d="M14 14c0 .7-.3 1.3-.7 1.7"/><path d="M9 18l-1 1"/><path d="M15 6 9.4 11.6"/><circle cx="8.5" cy="15.5" r="2.5"/><circle cx="14.5" cy="9.5" r="2.5"/></svg><a target="_blank" rel="noopener" style="all:unset;cursor:pointer;flex:1;min-width:0;display:block;"><span class="s-src-t"></span></a></div>
     <div class="s-meta" id="sMeta"></div>
   </div>
   <div class="s-foot" id="sFoot">
@@ -274,6 +291,14 @@ main{padding:8px 16px calc(96px + env(safe-area-inset-bottom));}
       <div><label>标签（逗号分隔）</label><input id="eTags" placeholder="计费, 退款"></div>
     </div>
     <datalist id="catList"></datalist>
+    <label>从网页导入</label>
+    <div class="webimport">
+      <div class="wi-row">
+        <input type="url" id="eUrl" placeholder="粘贴网页链接，一键抓取正文" autocomplete="off">
+        <button id="eFetch" class="wi-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4 7l8 4 8-4-8-4z"/><path d="M4 7v10l8 4 8-4V7"/></svg>抓取</button>
+      </div>
+      <div class="wi-sub"><button id="ePaste" type="button">或手动粘贴网页正文</button><span id="eUrlStatus"></span></div>
+    </div>
     <label>正文（支持 Markdown）</label>
     <textarea id="eContent" placeholder="支持 **加粗**、- 列表、1. 列表、## 小标题、`代码`"></textarea>
     <div class="row">
@@ -481,7 +506,7 @@ async function fetchAll(){
   else toast('加载失败：'+error.message);
 }
 function norm(r){ return { id:r.id, team_id:r.team_id, title:r.title, category:r.category,
-  tags:r.tags||[], content:r.content||'', is_fav:!!r.is_fav, created_at:r.created_at, updated_at:r.updated_at }; }
+  tags:r.tags||[], content:r.content||'', source_url:r.source_url||'', is_fav:!!r.is_fav, created_at:r.created_at, updated_at:r.updated_at }; }
 
 function subscribeRealtime(){
   if(!supa||!realTimeSub) return;
@@ -636,6 +661,9 @@ function openDetail(id){
   document.getElementById('sTitle').textContent=e.title;
   document.getElementById('sTags').innerHTML=((e.category&&e.category!=='其他')?`<span class="chip">${esc(e.category)}</span>`:'')+(e.tags||[]).map(t=>`<span class="chip tag">${esc(t)}</span>`).join('');
   document.getElementById('sContent').innerHTML=md(e.content);
+  var sSrc=document.getElementById('sSrc');
+  if(e.source_url){ sSrc.style.display='flex'; sSrc.querySelector('a').href=e.source_url; sSrc.querySelector('.s-src-t').textContent=e.source_url; sSrc.style.display='flex'; }
+  else { sSrc.style.display='none'; }
   document.getElementById('sMeta').textContent='创建 '+fmtTime(e.created_at)+' · 更新 '+fmtTime(e.updated_at);
   document.getElementById('sFav').classList.toggle('on',!!e.is_fav);
   document.getElementById('editor').classList.remove('on');
@@ -648,6 +676,7 @@ function openEditor(id){
   document.getElementById('editor').classList.add('on');
   document.getElementById('eTitle').value=e?e.title:'';document.getElementById('eCat').value=e?(e.category||''):'';
   document.getElementById('eTags').value=e?(e.tags||[]).join(', '):'';document.getElementById('eContent').value=e?e.content:'';
+  document.getElementById('eUrl').value=e?e.source_url||'':'';document.getElementById('eUrlStatus').textContent='';
   document.getElementById('sTitle').textContent=e?'编辑条目':'新建条目';
   if(!document.getElementById('sheet').classList.contains('open')){document.getElementById('sheet').classList.add('open');document.getElementById('backdrop').classList.add('on');}
 }
@@ -657,8 +686,9 @@ function saveEntry(){
   const category=document.getElementById('eCat').value.trim()||'其他';
   const tags=document.getElementById('eTags').value.split(/[,，]/).map(t=>t.trim()).filter(Boolean);
   const content=document.getElementById('eContent').value;const now=new Date().toISOString();
-  if(currentId&&entries.find(x=>x.id===currentId)){ opUpdate(currentId,{title,category,tags,content,updated_at:now}); }
-  else { opInsert({id:supa?crypto.randomUUID():(Date.now().toString(36)),team_id:teamId,title,category,tags,content,is_fav:false,created_at:now,updated_at:now}); }
+  const source_url=document.getElementById('eUrl').value.trim();
+  if(currentId&&entries.find(x=>x.id===currentId)){ opUpdate(currentId,{title,category,tags,content,source_url,updated_at:now}); }
+  else { opInsert({id:supa?crypto.randomUUID():(Date.now().toString(36)),team_id:teamId,title,category,tags,content,source_url,is_fav:false,created_at:now,updated_at:now}); }
   closeDetail();activeCat='全部';
 }
 function delEntry(){
@@ -683,6 +713,78 @@ function importJson(file){
   r.readAsText(file);
 }
 
+/* ---------- 网页导入 ---------- */
+// Edge Function 部署后把这里填成 https://<project-ref>.supabase.co/functions/v1/fetch-page
+// 没部署就留空，点「抓取」会退成「手动粘贴」提示
+const FETCH_FN = "https://fowpxibytlglboejspae.supabase.co/functions/v1/fetch-page";
+const ANON_KEY = SUPABASE_ANON_KEY;
+
+async function fetchWebPage(){
+  var urlEl=document.getElementById('eUrl');
+  var url=urlEl.value.trim();
+  var status=document.getElementById('eUrlStatus');
+  var btn=document.getElementById('eFetch');
+  if(!url){ status.textContent='请先粘贴网页链接'; status.style.color='var(--danger)'; return; }
+  btn.disabled=true; status.style.color='var(--muted)'; status.textContent='抓取中…';
+  try{
+    var res=await fetch(FETCH_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+ANON_KEY},body:JSON.stringify({url:url})});
+    var j=await res.json();
+    if(j.ok){
+      var cta=document.getElementById('eContent');
+      // 若正文已有内容则追加，否则直接填
+      cta.value=(cta.value.trim()?cta.value.trim()+'\n\n':'')+j.markdown;
+      if(!document.getElementById('eTitle').value && j.title) document.getElementById('eTitle').value=j.title;
+      urlEl.value=url;
+      status.style.color='var(--success)'; status.textContent='已抓取 '+(j.markdown||'').length+' 字';
+      toast('网页正文已填入');
+    }else{
+      status.style.color='var(--danger)'; status.textContent=j.error||'抓取失败';
+      toast('抓取失败，可改用手动粘贴');
+    }
+  }catch(e){
+    status.style.color='var(--danger)'; status.textContent='网络错误：'+(e.message||'无法连接');
+    toast('抓取失败，请检查网络或改用手动粘贴');
+  }finally{ btn.disabled=false; }
+}
+
+// 手动粘贴兜底：把用户复制来的 HTML/纯文本清洗成规整 Markdown
+async function pasteWebContent(){
+  var status=document.getElementById('eUrlStatus');
+  try{
+    var clip=await navigator.clipboard.readText();
+    if(!clip){ status.textContent='剪贴板为空'; status.style.color='var(--muted)'; return; }
+    var md=cleanHtmlToMd(clip);
+    var cta=document.getElementById('eContent');
+    cta.value=(cta.value.trim()?cta.value.trim()+'\n\n':'')+md;
+    status.style.color='var(--success)'; status.textContent='已粘贴清洗后正文';
+    toast('已粘贴正文，可微调后保存');
+  }catch(e){
+    status.style.color='var(--danger)'; status.textContent='无法读取剪贴板：'+(e.message||'权限');
+  }
+}
+
+// 把粘贴进来的 HTML/纯文本规整成简洁 Markdown（剥掉 script/style/多余标记）
+function cleanHtmlToMd(src){
+  if(!src) return '';
+  var isHtml=/<[a-z][\s\S]*>/i.test(src);
+  var doc=new DOMParser().parseFromString(isHtml?'<div>'+src+'</div>':'<div>'+src.replace(/\n/g,'<br>')+'</div>','text/html');
+  doc.querySelectorAll('script,style,nav,aside,form,button,select,input,iframe,noscript,svg,video,audio,header,footer').forEach(function(n){n.remove();});
+  var out='';
+  doc.querySelector('div').childNodes.forEach(function(node){
+    if(node.nodeType===3){ var t=node.textContent.replace(/\s+/g,' ').trim(); if(t) out+=t+'\n'; }
+    else if(node.nodeType===1){
+      var tag=node.tagName.toUpperCase();
+      var txt=node.textContent.replace(/\s+/g,' ').trim();
+      if(!txt) return;
+      if(/^H[1-6]$/.test(tag)){ out+='#'.repeat(parseInt(tag[1],10))+' '+txt+'\n'; }
+      else if(tag==='LI'){ out+='- '+txt+'\n'; }
+      else if(tag==='BR'){} else if(tag==='IMG'){ /* 忽略图片 */ }
+      else { out+=txt+'\n'; }
+    }
+  });
+  return out.replace(/\n{3,}/g,'\n\n').trim();
+}
+
 /* ---------- modal / toast ---------- */
 let modalCb=null;
 function confirmModal(t,txt,cb){document.getElementById('mTitle').textContent=t;document.getElementById('mText').textContent=txt;modalCb=cb;document.getElementById('modal').classList.add('on');}
@@ -703,6 +805,9 @@ function bindEvents(){
   document.getElementById('backdrop').onclick=closeDetail;
   document.getElementById('eSave').onclick=saveEntry;
   document.getElementById('eCancel').onclick=closeDetail;
+  document.getElementById('eFetch').onclick=fetchWebPage;
+  document.getElementById('eUrl').addEventListener('keydown',function(e){if(e.key==='Enter')fetchWebPage();});
+  document.getElementById('ePaste').onclick=pasteWebContent;
   document.getElementById('btnExp').onclick=exportJson;
   document.getElementById('btnImp').onclick=()=>document.getElementById('fileInput').click();
   document.getElementById('fileInput').onchange=e=>{if(e.target.files[0])importJson(e.target.files[0]);e.target.value='';};
