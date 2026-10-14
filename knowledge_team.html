@@ -318,11 +318,19 @@ async function login(){
 async function loadTeam(){
   if(!supa){ teamId='local'; teamName='本地模式'; renderAll(); return; }
   if(!session||!session.user){
-    // 登录态可能瞬时为空（token 刷新）：自动重试，不硬卡
-    toast('登录态未就绪，5 秒后自动重试');
-    setTimeout(async()=>{ 
-      try{ var g=await supa.auth.getSession(); if(g.data.session){ session=g.data.session; loadTeam(); } }catch(e){}
+    // 登录态瞬时为空：持续轮询恢复（最多 60 秒），覆盖手机网络波动
+    if(window.__teamRetry){ return; }   // 防重入
+    window.__teamRetry=true;
+    var tries=0;
+    var timer=setInterval(async()=>{
+      tries++;
+      try{
+        var g=await supa.auth.getSession();
+        if(g.data.session){ session=g.data.session; clearInterval(timer); window.__teamRetry=false; loadTeam(); }
+      }catch(e){}
+      if(tries>=12){ clearInterval(timer); window.__teamRetry=false; toast('登录态恢复超时，请刷新'); }
     },5000);
+    toast('登录态未就绪，自动恢复中…');
     return;
   }
   const myId=session.user.id;
